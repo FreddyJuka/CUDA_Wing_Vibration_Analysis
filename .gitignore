@@ -1,0 +1,27 @@
+# virtual env
+venv/
+.env/
+__pycache__/
+
+# temp or binary files
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.log
+
+# Compiled CUDA o C++
+*.o
+*.so
+*.out
+*.exe
+
+# output folder
+output/
+bin/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+Zone.Identifier
+
