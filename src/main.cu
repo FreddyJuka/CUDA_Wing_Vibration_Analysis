@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <chrono>      
 
 #include <cuda_runtime.h>
 #include <cufft.h>
@@ -87,6 +88,12 @@ int next_pow2(int v) {
 // Main
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv) {
+    // Total time (CPU + GPU)
+    auto t_start = std::chrono::high_resolution_clock::now();
+
+    // GPU acc time
+    float gpu_total_milliseconds = 0.0f;
+
     // Default options
     ProgramOptions opt;
     opt.data_dir = "data/sensors";
@@ -117,12 +124,17 @@ int main(int argc, char** argv) {
 
     int processed = 0;
 
+    // CUDA events
+    cudaEvent_t start, stop;
+    CUDA_CHECK(cudaEventCreate(&start));
+    CUDA_CHECK(cudaEventCreate(&stop));
+
     for (size_t fi = 0; fi < files.size() && processed < opt.nfiles; ++fi) {
         int nsamples = 0;
         auto mag = read_csv_magnitude(files[fi], nsamples);
         if (nsamples == 0) continue;
 
-        // Pad to next power of 2 for FFT
+        // Pad to next power of 2
         int N = next_pow2(nsamples);
         if (N > 16384) N = 16384;
         std::vector<float> signal(N, 0.0f);
@@ -141,17 +153,26 @@ int main(int argc, char** argv) {
         CUDA_CHECK(cudaMemcpy(d_signal, signal.data(),
                               sizeof(float) * N, cudaMemcpyHostToDevice));
 
-        // FFT plan and execution
+        // FFT plan
         cufftHandle plan;
         CUFFT_CHECK(cufftPlan1d(&plan, N, CUFFT_R2C, 1));
-        CUFFT_CHECK(cufftExecR2C(plan, d_signal, d_freq));
 
-        // Compute magnitude
+        // ------------------------------------------------------------
+        // GPU timing for this file
+        // ------------------------------------------------------------
+        CUDA_CHECK(cudaEventRecord(start));
+        CUFFT_CHECK(cufftExecR2C(plan, d_signal, d_freq));
         int threads = 256;
         int blocks = (nfreq + threads - 1) / threads;
         mag_r2c_kernel<<<blocks, threads>>>(d_freq, d_mag, nfreq);
         CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaEventRecord(stop));
+        CUDA_CHECK(cudaEventSynchronize(stop));
+
+        float gpu_milliseconds_file = 0.0f;
+        CUDA_CHECK(cudaEventElapsedTime(&gpu_milliseconds_file, start, stop));
+        gpu_total_milliseconds += gpu_milliseconds_file;
+        // ------------------------------------------------------------
 
         // Copy result to host
         std::vector<float> host_mag(nfreq);
@@ -162,34 +183,28 @@ int main(int argc, char** argv) {
         for (int k = 0; k < nfreq; ++k)
             host_mag[k] /= static_cast<float>(N);
 
-        // ------------------------------------------------------------
-        // Search for dominant frequency only in 5–200 Hz band
+        // Search dominant frequency in 5–200 Hz
         float freq_res = static_cast<float>(opt.fs) / static_cast<float>(N);
-
-        // Bins corresponding to 5 Hz and 200 Hz
         int min_bin = static_cast<int>(5.0f / freq_res);
         int max_bin = static_cast<int>(200.0f / freq_res);
-        if (max_bin >= nfreq) max_bin = nfreq - 1;  // safety check
+        if (max_bin >= nfreq) max_bin = nfreq - 1;
 
         int peak_idx = min_bin;
         float peak_val = host_mag[min_bin];
-
         for (int k = min_bin + 1; k <= max_bin; ++k) {
             if (host_mag[k] > peak_val) {
                 peak_val = host_mag[k];
                 peak_idx = k;
             }
         }
-        
         float dominant_hz = peak_idx * freq_res;
 
         // Save full spectrum
         std::string base = files[fi].substr(files[fi].find_last_of("/\\") + 1);
         std::ofstream sp((opt.out_dir + "/spectra/" + base + "_spectrum.csv").c_str());
         sp << "freq_hz,magnitude\n";
-        for (int k = 0; k < nfreq; ++k) {
+        for (int k = 0; k < nfreq; ++k)
             sp << (k * freq_res) << "," << host_mag[k] << "\n";
-        }
         sp.close();
 
         // Save summary
@@ -204,7 +219,23 @@ int main(int argc, char** argv) {
         processed++;
     }
 
+    // Destroy CUDA events
+    CUDA_CHECK(cudaEventDestroy(start));
+    CUDA_CHECK(cudaEventDestroy(stop));
+
     summary.close();
     std::cout << processed << " files processed.\n";
+
+    // Total CPU + GPU time
+    auto t_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_total = t_end - t_start;
+
+    // GPU time
+    float gpu_time_sec = gpu_total_milliseconds / 1000.0f;
+
+    std::cout << "Total execution time (overall CPU + GPU): " << elapsed_total.count() << " seconds\n";
+    std::cout << "Total execution time (GPU only): " << gpu_time_sec << " seconds\n";
+    std::cout << "Estimated CPU-only time: " << (elapsed_total.count() - gpu_time_sec) << " seconds\n";
+
     return 0;
 }
