@@ -129,9 +129,6 @@ Outputs:
 
 ## Example Output
 
-=========================================================/
-          CUDA Wing Vibration Analysis                
-==========================================================/
 100 files generated in data/sensors folder.
 make: Nothing to be done for 'all'.
 100 files processed.
@@ -141,7 +138,6 @@ Estimated CPU-only time: 2.36759 seconds
 Results saved in output folder.
 Plots saved in output/plots/ folder.
 Done.
-==========================================================/
 
 # Key Concepts Demonstrated
 
