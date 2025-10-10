@@ -161,3 +161,8 @@ Results and plots are in the 'output' folder.
 All signals are synthetic, purely for demonstration and benchmarking.
 The GPU timing metrics show performance improvements over CPU-only processing.
 This repository serves as a template for high-performance vibration analysis in aerospace or mechanical systems.
+
+## Project Demonstration (VIDEO)
+
+A short video demonstrating how to compile and run the code can be found at the following link:  
+[Video on OneDrive](https://1drv.ms/v/c/895e10b835d9a73e/Ee3Skra05ktGvxo0o_cG5BEB2OfPGdFh4dAUU2m8yUd5AQ)
