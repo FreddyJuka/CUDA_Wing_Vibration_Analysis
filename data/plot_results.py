@@ -52,5 +52,3 @@ if len(files) > 0:
     plt.tight_layout()
     plt.savefig(f"{plot_dir}/comparison_first5_sensors.png")
     plt.close()
-
-print(f"Plots saved in {plot_dir}/ folder.")

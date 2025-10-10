@@ -14,17 +14,35 @@ echo "=========================================================="
 echo "              CUDA Wing Vibration Analysis                "
 echo "=========================================================="
 
-# Generate data
-./venv/bin/python3 data/generate_data.py --nfiles ${NFILES} --nsamples ${NSAMPLES} --fs ${FS} --out ${DATA_DIR}
+# detect venv environment 
+if [ -d "venv" ]; then
+    PYTHON="./venv/bin/python3"
+else
+    PYTHON="python3"
+fi
 
-# Compile
-make
+# check and install python dependencies
+echo "Checking Python dependencies..."
+$PYTHON -m pip install --quiet --upgrade pip
+$PYTHON -m pip install --quiet -r requirements.txt
 
-# Run the analysis
+# generate synthetic data
+echo "Generating synthetic vibration data..."
+$PYTHON data/generate_data.py --nfiles ${NFILES} --nsamples ${NSAMPLES} --fs ${FS} --out ${DATA_DIR}
+
+# compile
+echo "Compiling CUDA code..."
+make clean build || make
+
+# run
+echo "Running GPU analysis..."
 bin/vib_analysis --data ${DATA_DIR} --out ${OUT_DIR} --fs ${FS} --nfiles ${NFILES}
 
-echo "Results in output folder."
+# post-process
 echo "Generating plots..."
-./venv/bin/python3 data/plot_results.py
-echo "Done."
+$PYTHON data/plot_results.py
+
+echo "=========================================================="
+echo "Execution completed successfully."
+echo "Results and plots are in the 'output' folder."
 echo "=========================================================="

@@ -20,7 +20,7 @@ __pycache__/
 output/
 bin/
 
-# Archivos del sistema
+# system files
 .DS_Store
 Thumbs.db
 Zone.Identifier

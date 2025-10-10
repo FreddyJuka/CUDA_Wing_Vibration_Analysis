@@ -129,15 +129,23 @@ Outputs:
 
 ## Example Output
             
+Checking Python dependencies...
+Generating synthetic vibration data...
 100 files generated in data/sensors folder.
-make: Nothing to be done for 'all'.
+Compiling CUDA code...
+rm -rf bin output
+mkdir -p bin
+nvcc -O3 -std=c++14 -Iinclude -o bin/vib_analysis src/main.cu src/kernels.cu -lcufft
+Running GPU analysis...
 100 files processed.
-Total execution time (overall CPU + GPU): 2.39948 seconds
-Total execution time (GPU only): 0.0318926 seconds
-Estimated CPU-only time: 2.36759 seconds
-Results saved in output folder.
+Total execution time (overall CPU + GPU): 1.39168 seconds
+Total execution time (GPU only): 0.0311257 seconds
+Estimated CPU-only time: 1.36056 seconds
+Generating plots...
 Plots saved in output/plots/ folder.
-Done.
+
+Execution completed successfully.
+Results and plots are in the 'output' folder.
 
 # Key Concepts Demonstrated
 

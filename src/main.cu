@@ -31,7 +31,7 @@
         return 1; } } while(0)
 
 // -----------------------------------------------------------------------------
-// CSV reading: computes acceleration magnitude (sqrt(ax² + ay² + az²))
+// CSV reading. Computes acceleration magnitude (sqrt(ax² + ay² + az²))
 // -----------------------------------------------------------------------------
 std::vector<float> read_csv_magnitude(const std::string &path, int &nsamples) {
     std::ifstream in(path);
@@ -76,7 +76,7 @@ std::vector<std::string> list_csv(const std::string &dir) {
 }
 
 // -----------------------------------------------------------------------------
-// Next power of 2 (for FFT)
+// Next power of 2 for FFT
 // -----------------------------------------------------------------------------
 int next_pow2(int v) {
     int p = 1;
@@ -88,7 +88,7 @@ int next_pow2(int v) {
 // Main
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv) {
-    // Total time (CPU + GPU)
+    // Total time CPU + GPU
     auto t_start = std::chrono::high_resolution_clock::now();
 
     // GPU acc time
@@ -183,11 +183,17 @@ int main(int argc, char** argv) {
         for (int k = 0; k < nfreq; ++k)
             host_mag[k] /= static_cast<float>(N);
 
-        // Search dominant frequency in 5–200 Hz
+        // ------------------------------------------------------------
+        // Search dominant frequency in 5–200 Hz (with safety checks)
         float freq_res = static_cast<float>(opt.fs) / static_cast<float>(N);
         int min_bin = static_cast<int>(5.0f / freq_res);
         int max_bin = static_cast<int>(200.0f / freq_res);
+
+        // Safety, ensure bins are inside (1, nfreq-1)
+        if (min_bin < 1) min_bin = 1;
+        if (max_bin < min_bin) max_bin = min_bin;
         if (max_bin >= nfreq) max_bin = nfreq - 1;
+        if (min_bin >= nfreq) min_bin = std::max(1, nfreq - 1);
 
         int peak_idx = min_bin;
         float peak_val = host_mag[min_bin];
@@ -225,6 +231,9 @@ int main(int argc, char** argv) {
 
     summary.close();
     std::cout << processed << " files processed.\n";
+
+    // Ensure all GPU work is finished before stopping the clock
+    CUDA_CHECK(cudaDeviceSynchronize());
 
     // Total CPU + GPU time
     auto t_end = std::chrono::high_resolution_clock::now();
